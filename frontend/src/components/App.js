@@ -28,7 +28,8 @@ function App() {
 
 	const [userData, setUserData] = useState({});
 	const [loggedIn, setLoggedIn] = useState(false);
-	const [isInfoTooltip, setIsInfoTooltip] = useState(false)
+	const [isInfoTooltip, setIsInfoTooltip] = useState(false);
+	const [isInfoSuccess, setIsInfoSuccess] = useState(false);
 	const history = useHistory();
 
 	const handleLogin = ({ email, password }) => {
@@ -36,48 +37,62 @@ function App() {
 			.then((data) => {
 				if (data.token) {
 					localStorage.setItem('jwt', data.token);
-					api.setHeaders({authorization: data.token});
+					api.setHeaders({ authorization: data.token });
 					tokenCheck();
 				}
 			})
 			.catch(console.error)
 			.finally(() => {
-				setIsInfoTooltip(true);
+				if (userData.email) {
+					setLoggedIn(true);
+				}
 			})
 	}
 
 	const handleRegister = ({ email, password }) => {
-		return Auth.register(email, password).then(() => {
-			history.push('/sign-in')
-				
-		}).catch(console.error);
+		return Auth.register(email, password)
+			.then(() => setIsInfoSuccess(true))
+			.catch((error) => {
+				console.log(error.message);
+				setIsInfoSuccess(false)
+			})
+			.finally(() => setIsInfoTooltip(true))
 	}
+
+	const closeInfoPopup = () => {
+		if (isInfoSuccess) {
+			history.push('/sign-in');
+		}
+
+		closeAllPopups();
+	}
+
 
 	const tokenCheck = () => {
 		if (localStorage.getItem('jwt')) {
 			const jwt = localStorage.getItem('jwt');
-			return Auth.getContent(jwt).then((res) => {
-				if (res) {
-					const userData = {
-						email: res.email
-					}
+			return Auth.getContent(jwt)
+				.then((res) => {
+					if (res) {
+						const userData = {
+							email: res.email
+						}
 
-					setUserData(userData);
-					return userData;
-				}
-			}).catch(console.error);
+						setCurrentUser(res);
+						setUserData(userData);
+
+						if (userData.email) {
+							setLoggedIn(true);
+						}
+
+						return userData;
+					}
+				})
+				.catch(console.error)
 		}
 
 		return Promise.resolve({});
 	}
-
-	const closeInfoPopup = () => {
-		if (userData.email) {
-			setLoggedIn(true);
-		}
-		closeAllPopups();
-	}
-
 	const signOut = () => {
 		localStorage.removeItem('jwt');
 		setLoggedIn(false);
@@ -86,11 +101,7 @@ function App() {
 	}
 
 	useEffect(() => {
-		tokenCheck().then((userData) => {
-			if (userData.email) {
-				setLoggedIn(true);
-			}
-		}).catch(console.error)
+		tokenCheck()
 	}, []);
 
 	useEffect(() => {
@@ -100,20 +111,14 @@ function App() {
 	}, [loggedIn]);
 
 	useEffect(() => {
-		api.getInitialCards()
-			.then((data) => {
-				setCards(data);
-			})
-			.catch(console.error);
-	}, []);
-
-	useEffect(() => {
-		api.getUserInfo()
-			.then(userInfo => {
-				setCurrentUser(userInfo)
-			})
-			.catch(console.error);
-	}, []);
+		if (loggedIn) {
+			api.getInitialCards()
+				.then((data) => {
+					setCards(data);
+				})
+				.catch(console.error);
+		}
+	}, [loggedIn]);
 
 	function closeAllPopups() {
 		setIsEditProfilePopupOpen(false)
@@ -223,7 +228,6 @@ function App() {
 						<Header title="Регистрация" link="/sign-up" />
 						<div className="page">
 							<SignIn handleLogin={handleLogin} tokenCheck={tokenCheck} />
-							<InfoTooltip isOk={userData.email} isOpen={isInfoTooltip} onClose={closeInfoPopup} />
 						</div>
 					</Route>
 
@@ -231,7 +235,7 @@ function App() {
 						<Header title="Вход" link="/sign-in" />
 						<div className="page">
 							<SignUp handleRegister={handleRegister} />
-
+							<InfoTooltip isOk={isInfoSuccess} isOpen={isInfoTooltip} onClose={closeInfoPopup} />
 						</div>
 					</Route>
 
