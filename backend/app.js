@@ -19,12 +19,12 @@ const allowedCors = [
   'https://sasha.nomoredomains.sbs',
 ];
 
-app.use(function (req, res, next) {
+app.use((req, res, next) => {
   const { origin } = req.headers; // Сохраняем источник запроса в переменную origin
   // Значение для заголовка Access-Control-Allow-Methods по умолчанию (разрешены все типы запросов)
-  const DEFAULT_ALLOWED_METHODS = "GET,HEAD,PUT,PATCH,POST,DELETE";
+  const DEFAULT_ALLOWED_METHODS = 'GET,HEAD,PUT,PATCH,POST,DELETE';
   const { method } = req; // Сохраняем тип запроса (HTTP-метод) в соответствующую переменную
-  // проверяем, что источник запроса есть среди разрешённых 
+  // проверяем, что источник запроса есть среди разрешённых
 
   if (allowedCors.includes(origin)) {
     // устанавливаем заголовок, который разрешает браузеру запросы с этого источника
@@ -40,7 +40,7 @@ app.use(function (req, res, next) {
     return res.end();
   }
 
-  next();
+  return next();
 });
 
 app.get('/crash-test', () => {
@@ -49,17 +49,14 @@ app.get('/crash-test', () => {
   }, 0);
 });
 
-
 app.use(requestLogger); // подключаем логгер запросов
 app.use(bodyParser.json());
 app.use(router);
-
 
 mongoose.connect('mongodb://localhost:27017/mestodb', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
-
 
 app.use((req, res, next) => {
   next(new NotFoundError('Маршрут не найден'));
@@ -79,13 +76,10 @@ app.use((err, req, res, next) => {
   return next();
 });
 
-
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => { });
+} else if (process.env.JWT_SECRET) {
+  app.listen(PORT, () => { });
 } else {
-  if (process.env.JWT_SECRET) {
-    app.listen(PORT, () => { });
-  } else {
-    throw new Error('Токен не указан')
-  }
+  throw new Error('Токен не указан');
 }
